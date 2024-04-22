@@ -6,13 +6,26 @@ class CourseManager:
         self.counter = 0
 
     def create_a_course(self, course_code, semester, teacher_list):
-        ## automatically generate a courseId
+        if not course_code or not semester or not teacher_list:
+            raise ValueError("Invalid input: course_code, semester, and teacher_list cannot be empty.")
+
+        # Ensure teacher_list is a list
+        if not isinstance(teacher_list, list):
+            raise ValueError("Invalid input: teacher_list must be a list.")
+
+        # Ensure teacher_list contains valid teacher names
+        for teacher in teacher_list:
+            if not isinstance(teacher, str) or not teacher:
+                raise ValueError("Invalid input: teacher names must be non-empty strings.")
+
+        # Automatically generate a courseId
         new_course_id = self.generate_id()
         new_course = Course(new_course_id, course_code, semester, teacher_list)
 
-        # add the new course to the list
+        # Add the new course to the list
         self.course_list.append(new_course)
         return new_course_id
+
 
     def generate_id(self):
         self.counter += 1
@@ -24,8 +37,7 @@ class CourseManager:
             print(f"course: {course.course_id}")
             if course.course_id == id:
                 return course
-            
-        return None
+        raise CourseNotFoundException(f"Course with ID {id} not found.")
 
     def sync_with_database(self):
         # will not implement here
