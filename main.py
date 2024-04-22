@@ -1,16 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from typing import List
 from course import CourseManager, Course
 from user import UserManager
-from fastapi.security import APIKeyHeader
-
-coursemanager = CourseManager()
-usermanager = UserManager()
-usermanager.create_a_user("John", "pwd", "studnet")
-usermanager.create_a_user("Alice", "pwd", "teacher")
-usermanager.create_a_user("Jimmy", "pwd", "admin")
 
 app = FastAPI()
+course_manager = CourseManager()
+user_manager = UserManager()
 
 @app.get("/")
 def welcome():
@@ -20,23 +15,44 @@ def welcome():
 def create_a_course(coursecode: str, 
                     semester: str, 
                     teacher_id_list: List[int]) -> int:
-    ### an admin should create a course
-    teacher_list = usermanager.find_users(teacher_id_list)
-    course_id = coursemanager.create_a_course(coursecode, semester, teacher_list)
+    # Check if teacher IDs are provided
+    if not teacher_id_list:
+        raise HTTPException(status_code=400, detail="No teacher IDs provided.")
+
+    # Find users with provided IDs
+    teacher_list = user_manager.find_users(teacher_id_list)
+    if not teacher_list:
+        raise HTTPException(status_code=404, detail="No teachers found with provided IDs.")
     
-    course = coursemanager.find_a_course(course_id)
-    print(str(course.teacher_list[0]))
+    # Create course
+    try:
+        course_id = course_manager.create_a_course(coursecode, semester, teacher_list, "admin")
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
 
     return course_id
 
 @app.put("/courses/{courseid}/students")
 def import_students(courseid: int,
                     student_id_list: List[int]) -> None:
-    course = coursemanager.find_a_course(courseid)
-    student_list = usermanager.find_users(student_id_list)
-    course.import_students(student_list)
+    # Check if student IDs are provided
+    if not student_id_list:
+        raise HTTPException(status_code=400, detail="No student IDs provided.")
+
+    # Find course
+    course = course_manager.find_a_course(courseid)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found.")
     
-    print(course.course_id)
-    print(course.student_list)
+    # Find users with provided IDs
+    student_list = user_manager.find_users(student_id_list)
+    if not student_list:
+        raise HTTPException(status_code=404, detail="No students found with provided IDs.")
+    
+    # Import students to the course
+    try:
+        course.import_students(student_list)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     
     return None
